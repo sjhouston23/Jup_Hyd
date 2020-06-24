@@ -66,9 +66,22 @@ real*8 dum
 !* Hydrogen ion variables:
 ! PROCESSES (Proc)
 integer Proc,nProc !Number of processes
-integer noPP,SS,DS,PEX ! Processes
-parameter(nProc=9)
-parameter(SI=1,DI=2,TI=3,SC=4,DC=5,TEX=6,SS=7,DS=8,PEX=9)
+integer SI,DI,TI,SS,DS,SC,DC,TEX,PEX,ES! Processes
+parameter(nProc=10)
+parameter(SI=1,DI=2,TI=3,SS=4,DS=5,SC=6,DC=7,TEX=8,PEX=9,ES=10)
+! *****
+! SI  = 1  - Single Ionization
+! DI  = 2  - Double Ionization
+! TI  = 3  - Transfer Ionization
+! SS  = 4  - Single Stripping
+! DS  = 5  - Double Stripping
+! SC  = 6  - Single Capture
+! DC  = 7  - Double Capture
+! TEX = 8  - Target Excitation
+! PEX = 9  - Projectile Excitation
+! ES  = 10 - Elastic Scattering
+! *****
+
 !CHARGE STATES (ChS)
 integer ChS,ChS_init,ChS_old,nChS !Number of hydrogen charge states from -1, 0, +1
 parameter(nChS=3)
@@ -82,11 +95,11 @@ real*8,dimension(nEnergiesNorm) :: IonEnergyNorm !Initial ion energies normally
 real*8,dimension(nEnergiesJuno) :: IonEnergyJuno !Initial ion energies for Juno
 real*8,allocatable,dimension(:) :: IonEnergy !Initial ion energies once decided
 !CHARGE STATE DISTRIBUTION
-integer nProEngBins !Number of energy bins for charge state fractions
-real*8 ProEngBinSize !Size of energy bins for charge state fractions
-parameter(nProEngBins=25000,ProEngBinSize=1.0)
-integer(kind=int64) :: ProVsEng(nChS,nProEngBins) !Charge state fractions
-real*8 engBins(nProEngBins),SulEngBins(nProEngBins) !Hydrogen energy bins
+integer nHydEngBins !Number of energy bins for charge state fractions
+real*8 HydEngBinSize !Size of energy bins for charge state fractions
+parameter(nHydEngBins=25000,HydEngBinSize=1.0)
+integer(kind=int64) :: HydVsEng(nChS,nHydEngBins) !Charge state fractions
+real*8 engBins(nHydEngBins),HydEngBins(nHydEngBins) !Hydrogen energy bins
 !STOPPING POWER (SP)
 integer nSPBins !Number of stopping power bins vs. energy
 real*8 SPBinSize !Size of bins
@@ -104,10 +117,10 @@ integer numSim,dpt,maxDpt
 
 integer(kind=int64),dimension(nProc) :: collisions !Counter
 real*8,dimension(nProc) :: dEcollisions !Counter
-integer(kind=int64),dimension(nProc,nChS,atmosLen) :: Sulfur
+integer(kind=int64),dimension(nProc,nChS,atmosLen) :: Hydrogen
 real*8 incB,kappa,pangle
 real*8,dimension(nChS,nInterpEnergies) :: SIMxs_Total !SigTot for dN calculation
-real*8,dimension(1+nProjProc,nChS,nInterpEnergies) :: SIMxs_Totaltmp
+! real*8,dimension(1+nProjProc,nChS,nInterpEnergies) :: SIMxs_Totaltmp
 real*8,dimension(nTargProc,nChS,nInterpEnergies) :: SIMxs_Totaltarg
 real*8,dimension(nProc,nChS,nInterpEnergies) :: SIMxs !All SIMxs
 !* SIMxs has an additonal projectile process which is no projectile process
@@ -161,7 +174,7 @@ data IonEnergyJuno/10.625,11.619,12.656,13.786,15.017,16.177,17.427,18.774,&
      20.225,22.280,24.543,27.036,29.783,33.319,37.276,41.702,46.653,49.634,&
      52.806,56.180,59.770,63.785,68.070,72.642,77.522,86.586,96.710,108.018,&
      120.647,139.90,162.223,188.108,218.125,262.319,315.467,379.384,456.250/
-data engBins/nProEngBins*ProEngBinSize/ !Used for sulfur binning
+data engBins/nHydEngBins*HydEngBinSize/ !Used for sulfur binning
 data files/'ChargeStateDistribution','H+_Prod','H2+_Prod','H2*_Prod',&
      'Collisions','Photons_CX','Photons_DE','Stopping_Power','2Str_Elect_Fwd',&
      '2Str_Elect_Bwd'/
@@ -170,7 +183,7 @@ data files/'ChargeStateDistribution','H+_Prod','H2+_Prod','H2*_Prod',&
 call system_clock (t1,clock_rateTotal,clock_maxTotal)
 !**************************** Initialize Variables *****************************
 altitude=0.0;totalCD=0.0;totalDens=0.0;H=0.0;altDelta=0.0;SIMxs=0.0
-SIMxs_Total=0.0;SIMxs_Totaltmp=0.0;SulEngBins=0.0;SPBins=0.0;dEvsEngPID=0.0
+SIMxs_Total=0.0;SIMxs_Totaltmp=0.0;HydEngBins=0.0;SPBins=0.0;dEvsEngPID=0.0
 !**************************** Create the Atmosphere ****************************
 open(unit=200,file='./Atmosphere/Input/JunoColumnDensity_2km.dat',status='old')
 open(unit=201,file='./Atmosphere/Input/JunoAtmosphere_2km.dat',status='old')
@@ -247,10 +260,10 @@ close(204)
 !   es=es+del(i)
 !   E2str(i)=Es
 ! end do
-!Sulfur bins for charge state fractions:
-SulEngBins(1)=ProEngBinSize
-do i=2,nProEngBins
-  SulEngBins(i)=SulEngBins(i-1)+engBins(i) !1-2000 keV/u
+!Hydrogen bins for charge state fractions:
+HydEngBins(1)=HydEngBinSize
+do i=2,nHydEngBins
+  HydEngBins(i)=HydEngBins(i-1)+engBins(i) !1-2000 keV/u
 end do
 !Stopping power bins:
 SPBins(1)=1.0
@@ -311,8 +324,8 @@ do run=7,7!,nEnergies !Loop through different initial ion energies
   call ranlux(angle,nIons) !Calculate all the angles to be used
 !********************* Reset Counters For New Ion Energies *********************
   Hp =0;totalElect=0;dEcollisions=0.0
-  H2p=0;Sulfur    =0;electFwd  =0;electBwd  =0;maxDpt   =0
-  H2Ex  =0;collisions=0;ProVsEng  =0
+  H2p=0;Hydrogen    =0;electFwd  =0;electBwd  =0;maxDpt   =0
+  H2Ex  =0;collisions=0;HydVsEng  =0
   SPvsEng=0.0;SIMxsTotvsEng=0.0;dEvsEng=0.0;dNvsEng=0.0;nSPions=0
 !************************ Ion Precipitation Begins Here ************************
   write(*,*) 'Starting Ion Precipitation: ', energy,'keV/u' !Double check energy
@@ -452,9 +465,9 @@ do run=7,7!,nEnergies !Loop through different initial ion energies
 !*  This is all done in the writing of the output files. Photon productions are
 !*  files 118 and 119 using the sulfur variable.
 !*******************************************************************************
-!********************** Counting Sulfur & H/H2 Production **********************
-      Sulfur(PID(1),PID(2),ChS,dpt)=Sulfur(PID(1),PID(2),ChS,dpt)+1 !Sulfur prod
-      !Sulfur variable is what shows photon production, depending on processes
+!********************** Counting Hydrogen & H/H2 Production **********************
+      Hydrogen(PID(1),PID(2),ChS,dpt)=Hydrogen(PID(1),PID(2),ChS,dpt)+1 !Hydrogen prod
+      !Hydrogen variable is what shows photon production, depending on processes
       if(disso.eq.2)then
         Hp(dpt)=Hp(dpt)+2 !Number of H^+ produced
       elseif(disso.eq.1)then
@@ -477,10 +490,10 @@ do run=7,7!,nEnergies !Loop through different initial ion energies
         write(206,10001) E,dEsp,dE,dN,dEold,PID(1),PID(2),ChS_old
       end if
       dEcollisions(PID(1),PID(2))=dEcollisions(PID(1),PID(2))+dE
-!********************** Sulfur Charge State Distribution ***********************
-      do j=1,nProEngBins
-        if(E.le.SulEngBins(j))then
-          ProVsEng(ChS,j)=ProVsEng(ChS,j)+1
+!********************** Hydrogen Charge State Distribution ***********************
+      do j=1,nHydEngBins
+        if(E.le.HydEngBins(j))then
+          HydVsEng(ChS,j)=HydVsEng(ChS,j)+1
           goto 3000
         end if
       end do
@@ -532,10 +545,10 @@ do run=7,7!,nEnergies !Loop through different initial ion energies
 !***************************** Write out to files ******************************
   norm=nIons*2e5 !Normalization condition to per ion per cm
 !*** Charge state distribution
-  write(101,H01) !Sulfur charge state distribution header
-  do i=2,nProEngBins !Sulfur charge state distribution
-    write(101,F01) SulEngBins(i)-(ProEngBinSize/2.0),&
-      (real(ProVsEng(j,i))/real(sum(ProVsEng(:,i))),j=1,nChS)
+  write(101,H01) !Hydrogen charge state distribution header
+  do i=2,nHydEngBins !Hydrogen charge state distribution
+    write(101,F01) HydEngBins(i)-(HydEngBinSize/2.0),&
+      (real(HydVsEng(j,i))/real(sum(HydVsEng(:,i))),j=1,nChS)
   end do
 !*** H production
   write(102,H02) !H^+ Header
