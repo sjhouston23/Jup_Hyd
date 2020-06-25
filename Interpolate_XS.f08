@@ -77,7 +77,7 @@ do Proc=1,nProc
 end do
 close(100)
 101 format(I6.1,3(4x,ES8.2E2))
-open(unit=200,file='./XS/OG_Integral_XS_CTMC_Summed.dat')
+open(unit=200,file='./XS/Integral_XS_CTMC_Summed.dat')
 !* Read in normalized integral cross-sections
 open(unit=100,file='./XS/OG_Integral_XS_Normalized.txt',status='old')
 do Proc=1,nProc
@@ -92,10 +92,10 @@ do Proc=1,nProc
 end do
 close(100)
 102 format(I6.1,3(4x,ES8.2E2,4x,F4.3))
-open(unit=201,file='./XS/OG_Integral_XS_Normalized_Summed.dat')
+open(unit=201,file='./XS/Integral_XS_Normalized_Summed.dat')
 !* Calculate the sum of the integral cross-sections and write them out
-write(200,*) 'Energy    H^-        H        H^+'
-write(201,*) 'Energy    H^-        H        H^+'
+write(200,*) 'Energy    H^+        H        H^-'
+write(201,*) 'Energy    H^+        H        H^-'
 do j = 1,2
   do i=1,nEnergies
     write(199+j,20400) int(Energy(i)),(sum(xs(ChS,i,:,j)),ChS=1,nChS)
@@ -107,144 +107,202 @@ do j = 1,2
 end do
 20400 format(I7,3(2x,ES8.2E2))
 
-open(unit=206,file='./XS.dat')
-do Proc=1,1!nProc !Loop through every process
-  do ChS=1,1!nChS !Loop through every charge state (0-16)
-    Eng=1 !Set Eng variable back to 1
-    SpE=0.0
-    !Calculate second derivative array
-    ! do i=1,nEnergies
-    !   xs_tmp(i) = xs(ChS,i,Proc,1)
+! open(unit=206,file='./XS.dat')
+do j=1,2 !CTMC and Normalized
+  do Proc=1,nProc !Loop through every process
+    do ChS=1,nChS !Loop through every charge state (+1 - -1)
+      Eng=1 !Set Eng variable back to 1
+      SpE=0.0
+      !Calculate second derivative array
+      ! do i=1,nEnergies
+      !   xs_tmp(i) = xs(ChS,i,Proc,1)
+      ! end do
+      xs_tmp(:,:) = xs(ChS,:,Proc,:)
+      call spline(log(Energy),log(xs_tmp(:,j)),nEnergies,xs_tmp2)
+      do E=1,nInterpEnergies !Interpolation loop (1-25000 keV/u)
+        SpE=SpE+1.0
+        if(E.ge.Energy(Eng+1)) Eng=Eng+1 !Go to next Energy when appropriate
+        if(E.eq.Energy(nEnergies)) Eng=nEnergies !Don't want Eng to go out of bounds
+
+        if(E.lt.1.or.E.gt.10000)then
+          xsInterp(Proc,ChS,E,j)=log(xs(ChS,Eng,Proc,j))+&
+          (log(real(E))-log(Energy(Eng)))*&
+          (log(xs(ChS,Eng+1,Proc,j))-log(xs(ChS,Eng,Proc,j)))/&
+          (log(Energy(Eng+1))-log(Energy(Eng)))
+
+          xsInterp(Proc,ChS,E,j)=exp(xsInterp(Proc,ChS,E,j))
+        else
+        ! if(E.ge.1.and.E.le.10000)then
+        !   if(tProc.eq.1.and.pProc.gt.1.and.ChS.ge.8)goto 9000 !SI processes
+        !   if(tProc.eq.1.and.pProc.eq.5)goto 9000 !SI+DPEX
+        !   if(tProc.eq.2.and.pProc.gt.1.and.ChS.ge.9)goto 9000 !DI processes
+        !   if(tProc.eq.2.and.pProc.eq.3.and.ChS.ge.8)goto 9000 !DI+DS
+        !   if(tProc.eq.2.and.pProc.eq.5.and.ChS.ge.8)goto 9000 !DI+DPEX
+        !   if(tProc.eq.3.and.pProc.eq.1.and.ChS.le.3)goto 9000 !TI
+        !   if(tProc.eq.3.and.pProc.gt.1.and.ChS.ge.10)goto 9000 !TI processes
+        !   if(tProc.eq.4.and.pProc.eq.1.and.ChS.le.7)goto 9000 !DCAI
+        !   if(tProc.eq.4.and.pProc.gt.1)goto 9000 !DCAI processes
+        !   if(tProc.eq.5.and.pProc.gt.1.and.ChS.ge.8)goto 9000 !SC processes
+        !   if(tProc.eq.6.and.pProc.eq.1.and.ChS.le.6)goto 9000 !DC
+        !   if(tProc.eq.6.and.pProc.eq.1.and.ChS.ge.9)goto 9000 !DC
+        !   if(tProc.eq.6.and.pProc.gt.1.and.ChS.eq.3)goto 9000 !DC S^++
+        !   if(tProc.eq.6.and.pProc.gt.1.and.ChS.ge.8)goto 9000 !DC S^++
+        !   if(tProc.eq.7.and.pProc.gt.1.and.ChS.ge.6)goto 9000 !TEX processes
+        !   if(E.eq.10)then
+        !     do i=1,nEnergies
+        !       xs_tmp(i)=xs(ChS,i,tProc,pProc) !Create a vector for spline
+        !     end do
+        !   end if
+
+          call splineinterp(log(SpE),log(Energy),log(xs_tmp(:,j)),nEnergies,&
+                            xs_tmp2,xs_tmpI)
+          xsInterp(Proc,ChS,E,j)=exp(xs_tmpI)
+        end if
+        if(isnan(xsInterp(Proc,ChS,E,j)))then
+          if(E.gt.50)then
+            xsInterp(Proc,ChS,E,j) = xsInterp(Proc,ChS,E-1,j)
+          else
+            xsInterp(Proc,ChS,E,j) = 0.0
+          end if
+        endif
+        ! write(206,*) E,SpE,Energy(Eng),xs_tmp(Eng,1),nEnergies,xs_tmp2(Eng),xsInterp(Proc,ChS,E,1),xs_tmpI
+        9000 continue
+        ! if(xsInterp(tProc,pProc,ChS,E).ge.3E-14)then
+        !   write(*,*) xsInterp(tProc,pProc,ChS,E),tProc,pProc,ChS,E
+        !   stop
+        ! end if
+        ! write(*,*) E,xsInterp(tProc,pProc,ChS,E)
+        ! if(tProc.eq.1.and.pProc.eq.1)then
+        !   SigTotInterp(E,ChS)=log(SigTot(Eng,ChS))+&
+        !   (log(real(E))-log(Energy(Eng)))*&
+        !   (log(SigTot(Eng+1,ChS))-log(SigTot(Eng,ChS)))/&
+        !   (log(Energy(Eng+1))-log(Energy(Eng)))
+        !   SigTotInterp(E,ChS)=exp(SigTotInterp(E,ChS))
+        !   ! write(*,*) E,SigTotInterp(E,ChS)!,Energy(Eng)
+        ! end if
+      end do !End interpolation loop (1-2000 keV/u)
+    end do !End loop through every charge state (0-16)
+  end do !End loop through every target process
+end do
+
+!* Write out the results
+do j=1,2 ! Loop through CTMC and normalized
+  if(j.eq.1)then
+    open(unit=300,file='./XS/Integral_XS_CTMC_Interpolated.dat')
+    write(300,3002) '! Interpolated Integral Cross-Sections for the CTMC Model'
+  elseif(j.eq.2)then
+    open(unit=300,file='./XS/Integral_XS_Normalized_Interpolated.dat')
+    write(300,3002) '! Interpolated Integral Cross-Sections for the CTMC Model &
+    &Normalized to ORNL Recommendations'
+  end if
+  do Proc=1,nProc !Loop through every process
+    if(Proc.eq.SI)then
+      write(300,3002) 'SI   ---------- H^{q+} + H_2; q = 1, 0, -1'
+    elseif(Proc.eq.DI)then
+      write(300,3002) '!'
+      write(300,3002) 'DI   ---------- H^{q+} + H_2; q = 1, 0, -1'
+    elseif(Proc.eq.TI)then
+      write(300,3002) '!'
+      write(300,3002) 'TI   ---------- H^{q+} + H_2; q = 1, 0'
+    elseif(Proc.eq.SS)then
+      write(300,3002) '!'
+      write(300,3002) 'SS   ---------- H^{q+} + H_2; q = 0, -1'
+    elseif(Proc.eq.DS)then
+      write(300,3002) '!'
+      write(300,3002) 'DS   ---------- H^{q+} + H_2; q = -1'
+    elseif(Proc.eq.SC)then
+      write(300,3002) '!'
+      write(300,3002) 'SC   ---------- H^{q+} + H_2; q = 1, 0'
+    elseif(Proc.eq.DC)then
+      write(300,3002) '!'
+      write(300,3002) 'DC   ---------- H^{q+} + H_2; q = 1'
+    elseif(Proc.eq.TEX)then
+      write(300,3002) '!'
+      write(300,3002) 'TEX  ---------- H^{q+} + H_2; q = 1, 0, -1'
+    elseif(Proc.eq.PEX)then
+      write(300,3002) '!'
+      write(300,3002) 'PEX   ---------- H^{q+} + H_2; q = 0'
+    elseif(Proc.eq.ES)then
+      write(300,3002) '!'
+      write(300,3002) 'ElasticScattering - H^{q+} + H_2; q = 1, 0, -1'
+    endif
+    write(300,3002) 'Energy     Integral Cross Sections [cm^-2]'
+    write(300,3002) ' [keV]       H^+          H          H^-'
+    do E=1,nInterpEnergies !Loop through every energy
+      write(300,3001) E,(xsInterp(Proc,ChS,E,j),ChS=1,nChS)
+    end do
+  end do
+  close(300)
+end do
+3001 format(I6,1x,3(3x,ES9.3e2))
+3002 format(A)
+
+do j=2,2 ! Loop through normalized factors
+  if(j.eq.1)then
+    ! open(unit=300,file='./XS/OG_Integral_XS_CTMC_Interpolated.dat')
+    ! write(300,3002) '! Interpolated Integral Cross-Sections for the CTMC Model'
+  elseif(j.eq.2)then
+    open(unit=300,file='./XS/Normalized_Factors_Interpolated.dat')
+    write(300,3002) '! Interpolated factors for the CTMC Model &
+    &Normalized to ORNL Recommendations'
+  end if
+  do Proc=1,nProc !Loop through every process
+    if(Proc.eq.SI)then
+      write(300,3002) 'SI   ---------- H^{q+} + H_2; q = 1, 0, -1'
+    elseif(Proc.eq.DI)then
+      write(300,3002) '!'
+      write(300,3002) 'DI   ---------- H^{q+} + H_2; q = 1, 0, -1'
+    elseif(Proc.eq.TI)then
+      write(300,3002) '!'
+      write(300,3002) 'TI   ---------- H^{q+} + H_2; q = 1, 0'
+    elseif(Proc.eq.SS)then
+      write(300,3002) '!'
+      write(300,3002) 'SS   ---------- H^{q+} + H_2; q = 0, -1'
+    elseif(Proc.eq.DS)then
+      write(300,3002) '!'
+      write(300,3002) 'DS   ---------- H^{q+} + H_2; q = -1'
+    elseif(Proc.eq.SC)then
+      write(300,3002) '!'
+      write(300,3002) 'SC   ---------- H^{q+} + H_2; q = 1, 0'
+    elseif(Proc.eq.DC)then
+      write(300,3002) '!'
+      write(300,3002) 'DC   ---------- H^{q+} + H_2; q = 1'
+    elseif(Proc.eq.TEX)then
+      write(300,3002) '!'
+      write(300,3002) 'TEX  ---------- H^{q+} + H_2; q = 1, 0, -1'
+    elseif(Proc.eq.PEX)then
+      write(300,3002) '!'
+      write(300,3002) 'PEX   ---------- H^{q+} + H_2; q = 0'
+    elseif(Proc.eq.ES)then
+      write(300,3002) '!'
+      write(300,3002) 'ElasticScattering - H^{q+} + H_2; q = 1, 0, -1'
+    endif
+    write(300,3002) 'Energy                 Factors'
+    write(300,3002) ' [keV]       H^+          H          H^-'
+    do E=1,nInterpEnergies !Loop through every energy
+      write(300,3003) E,(xsInterp(Proc,ChS,E,2)/xsInterp(Proc,ChS,E,1),ChS=1,nChS)
+    end do
+  end do
+  close(300)
+end do
+! 3001 format(I6,3(4x,ES8.2e2))
+! 3002 format(A)
+3003 format(I6,3(4x,F8.4))
+
+open(unit=400,file='./XS/Integral_XS_CTMC_Sum_Interpolated.dat')
+open(unit=401,file='./XS/Integral_XS_Normalized_Sum_Interpolated.dat')
+!* Calculate the sum of the integral cross-sections and write them out
+write(400,3002) 'Energy       H^+          H          H^-'
+write(401,3002) 'Energy       H^+          H          H^-'
+do j = 1,2
+  do i=1,nInterpEnergies
+    write(399+j,3004) i,(sum(xsInterp(:,ChS,i,j)),ChS=1,nChS)
+    ! do ChS=1,nChS
+    !   SigTot(i,ChS,j)=sum(xsInterp(ChS,i,:,j))
     ! end do
-    xs_tmp(:,:) = xs(ChS,:,Proc,:)
-    call spline(log(Energy),log(xs_tmp(:,1)),nEnergies,xs_tmp2)
-    do E=1,nInterpEnergies !Interpolation loop (1-25000 keV/u)
-      SpE=SpE+1.0
-      if(E.ge.Energy(Eng+1)) Eng=Eng+1 !Go to next Energy when appropriate
-      if(E.eq.Energy(nEnergies)) Eng=nEnergies !Don't want Eng to go out of bounds
-
-      if(E.lt.1.or.E.gt.10000)then
-        xsInterp(Proc,ChS,E,1)=log(xs(ChS,Eng,Proc,1))+&
-        (log(real(E))-log(Energy(Eng)))*&
-        (log(xs(ChS,Eng+1,Proc,1))-log(xs(ChS,Eng,Proc,1)))/&
-        (log(Energy(Eng+1))-log(Energy(Eng)))
-
-        xsInterp(Proc,ChS,E,1)=exp(xsInterp(Proc,ChS,E,1))
-      else
-      ! if(E.ge.1.and.E.le.10000)then
-      !   if(tProc.eq.1.and.pProc.gt.1.and.ChS.ge.8)goto 9000 !SI processes
-      !   if(tProc.eq.1.and.pProc.eq.5)goto 9000 !SI+DPEX
-      !   if(tProc.eq.2.and.pProc.gt.1.and.ChS.ge.9)goto 9000 !DI processes
-      !   if(tProc.eq.2.and.pProc.eq.3.and.ChS.ge.8)goto 9000 !DI+DS
-      !   if(tProc.eq.2.and.pProc.eq.5.and.ChS.ge.8)goto 9000 !DI+DPEX
-      !   if(tProc.eq.3.and.pProc.eq.1.and.ChS.le.3)goto 9000 !TI
-      !   if(tProc.eq.3.and.pProc.gt.1.and.ChS.ge.10)goto 9000 !TI processes
-      !   if(tProc.eq.4.and.pProc.eq.1.and.ChS.le.7)goto 9000 !DCAI
-      !   if(tProc.eq.4.and.pProc.gt.1)goto 9000 !DCAI processes
-      !   if(tProc.eq.5.and.pProc.gt.1.and.ChS.ge.8)goto 9000 !SC processes
-      !   if(tProc.eq.6.and.pProc.eq.1.and.ChS.le.6)goto 9000 !DC
-      !   if(tProc.eq.6.and.pProc.eq.1.and.ChS.ge.9)goto 9000 !DC
-      !   if(tProc.eq.6.and.pProc.gt.1.and.ChS.eq.3)goto 9000 !DC S^++
-      !   if(tProc.eq.6.and.pProc.gt.1.and.ChS.ge.8)goto 9000 !DC S^++
-      !   if(tProc.eq.7.and.pProc.gt.1.and.ChS.ge.6)goto 9000 !TEX processes
-      !   if(E.eq.10)then
-      !     do i=1,nEnergies
-      !       xs_tmp(i)=xs(ChS,i,tProc,pProc) !Create a vector for spline
-      !     end do
-      !   end if
-
-        call splineinterp(log(SpE),log(Energy),log(xs_tmp(:,1)),nEnergies,&
-                          xs_tmp2,xs_tmpI)
-        xsInterp(Proc,ChS,E,1)=exp(xs_tmpI)
-      end if
-      write(206,*) E,SpE,Energy(Eng),xs_tmp(Eng,1),nEnergies,xs_tmp2(Eng),xsInterp(Proc,ChS,E,1),xs_tmpI
-      9000 continue
-      ! if(xsInterp(tProc,pProc,ChS,E).ge.3E-14)then
-      !   write(*,*) xsInterp(tProc,pProc,ChS,E),tProc,pProc,ChS,E
-      !   stop
-      ! end if
-      ! write(*,*) E,xsInterp(tProc,pProc,ChS,E)
-      ! if(tProc.eq.1.and.pProc.eq.1)then
-      !   SigTotInterp(E,ChS)=log(SigTot(Eng,ChS))+&
-      !   (log(real(E))-log(Energy(Eng)))*&
-      !   (log(SigTot(Eng+1,ChS))-log(SigTot(Eng,ChS)))/&
-      !   (log(Energy(Eng+1))-log(Energy(Eng)))
-      !   SigTotInterp(E,ChS)=exp(SigTotInterp(E,ChS))
-      !   ! write(*,*) E,SigTotInterp(E,ChS)!,Energy(Eng)
-      ! end if
-    end do !End interpolation loop (1-2000 keV/u)
-  end do !End loop through every charge state (0-16)
-end do !End loop through every target process
-! ! xsInterp=exp(xsInterp) !Revert back from log
-! ! do i=1,nInterpEnergies
-! !   write(206,20400) i,(sum(xsInterp(:,:,ChS,i)),ChS=10,10)
-! ! end do
-!
-! do tProc=1,nTargProc !Loop through every target process
-!   do pProc=1,nProjProc+1 !Loop through every projectile process plus 1
-!     write(filename,"('./SIMXSInterp/',A,A,'.dat')")&
-!     trim(TargProcCap(tProc)),trim(ProjProcCap(pProc))
-!     open(unit=101,file=trim(filename))
-!     write(101,1002) (i-1,i=1,17)
-!     do E=1,nInterpEnergies !Energy interpolation loop (1-2000 keV/u)
-!       do ChS=1,nChS !Loop through every charge state
-!         if(isnan(xsInterp(tProc,pProc,ChS,E)))& !Get rid of any NaN values
-!         xsInterp(tProc,pProc,ChS,E)=0.0
-!       end do !End loop through every charge state
-!       write(101,1001) real(E),(xsInterp(tProc,pProc,ChS,E),ChS=1,nChS)
-!     end do !End energy interpolation loop (1-2000 keV/u)
-!     close(101)
-!     write(filename,"('./SIMXS/',A,A,'p.dat')")&
-!     trim(TargProcCap(tProc)),trim(ProjProcCap(pProc))
-!     open(unit=102,file=trim(filename))
-!     write(102,1002) (i-1,i=1,17)
-!     do Eng=1,nEnergies
-!       write(102,1001) Energy(Eng),(xs(ChS,Eng,tProc,pProc),ChS=1,nChS)
-!     end do
-!     close(102)
-!   end do !End loop through every projectile process plus 1
-! end do !End loop through every target process
-!
-! open(unit=103,file='./SIMXSInterp/SIMXSInterpAll.txt')
-! do tProc=1,nTargProc !Loop through every target process
-!   do pProc=1,nProjProc+1 !Loop through every projectile process plus 1
-!     write(103,1111) TargProcCap2(tProc),ProjProcCap(pProc)
-!     write(103,*) 'Energy     S        S^+       S^++      S^3+      S^4+      &
-!     &S^5+      S^6+      S^7+      S^8+      S^9+     S^10+     S^11+     S^12+&
-!     &     S^13+     S^14+     S^15+     S^16+'
-!     do E=1,nInterpEnergies !Energy interpolation loop (1-2000 keV/u)
-!       do ChS=1,nChS !Loop through every charge state
-!         if(isnan(xsInterp(tProc,pProc,ChS,E)))& !Get rid of any NaN values
-!         xsInterp(tProc,pProc,ChS,E)=0.0
-!       end do !End loop through every charge state
-!       write(103,1001) real(E),&
-!         (xsInterp(tProc,pProc,ChS,E),ChS=1,nChS)
-!     end do !End energy interpolation loop (1-2000 keV/u)
-!   end do !End loop through every projectile process plus 1
-! end do !End loop through every target process
-! close(103)
-! ! open(unit=103,file='./SIMXSInterp/SIMXSInterpAll.dat')
-! ! write(103,1100) exp(xsInterp) !Write out every cross-section to a single file
-! ! close(103)
-! do eng=1,nInterpEnergies
-!   do ChS=1,nChS
-!     SigTotInterp(Eng,ChS)=sum(xsInterp(:,:,ChS,Eng))
-!   end do
-! end do
-! open(unit=205,file='./SIMXSInterp_TotalOG.dat')
-! write(205,*) 'Energy     S        S^+       S^++      S^3+      S^4+      &
-! &S^5+      S^6+      S^7+      S^8+      S^9+     S^10+     S^11+     S^12+&
-! &     S^13+     S^14+     S^15+     S^16+'
-! do i=1,nInterpEnergies
-!   write(205,20400) i,(SigTotInterp(i,ChS),ChS=1,nChS)
-! end do
-! close(205)
-!
-! 1000 format(17(ES9.3E2,1x))
-! 1001 format(F7.2,17(1x,ES9.3E2))
-! 1002 format(' Energy',4x,9('S^',I0,'+',6x),8('S^',I0,'+',5x))
-! 1100 format(20(ES9.3E2,1x))
-! 1111 format(A4,A5,'----------')
-! 1112 format(I7,17(1x,ES9.3E2))
+  end do
+  close(399+j)
+end do
+3004 format(I6,2x,3(1x,ES11.5e2))
 
 end program
