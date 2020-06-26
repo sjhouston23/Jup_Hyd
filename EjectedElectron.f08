@@ -1,6 +1,6 @@
 subroutine EjectedElectron(E,Proc,ChS,electron_energy,electron_angle,eBin)
 !*******************************************************************************
-!* Created by Stephen J. Houston 10.31.18
+!* Created by Stephen J. Houston 06.26.20
 !*******************************************************************************
 !* This subroutine will calculate the energy and angle of an ejected
 !* electron for a given ion energy, ion charge state, & collision type.
@@ -47,9 +47,9 @@ integer,intent(out) :: eBin !Electron energy bin in 2-stream format
 real*8,intent(in) :: E !Ion energy
 real*8,intent(out) :: electron_energy,electron_angle
 
-parameter(neProc=6) !Number of processes that eject electrons
-parameter(nChS=17) !Number of charge states from 0-16
-parameter(nEnergies=9) !Number of inital energies
+parameter(neProc=5) !Number of processes that eject electrons
+parameter(nChS=3) !Number of charge states from 0-16
+parameter(nEnergies=15) !Number of inital energies
 parameter(nE2strBins=260) !Number of 2 stream bins
 
 integer Eng,eEng,eAng
@@ -62,7 +62,8 @@ real*8,allocatable,dimension(:,:,:,:),save :: eProbFunc,aProbFunc
 real*8,save :: es,del(nE2strBins),E2str(nE2strBins) !2-Stream energy bins
 !****************************** Data Declaration *******************************
 !* Initial ion energy input:
-data IonEnergy/1.0,10.0,50.0,75.0,100.0,200.0,500.0,1000.0,2000.0/
+data IonEnergy/1.0,2.0,5.0,10.0,25.0,50.0,75.0,100.0,200.0,500.0,1000.0,2000.0,&
+     5000.0,10000.0,25000.0/
 !dE for each 2-Stream energy bin. Must match two stream code binning
 data del/20*0.5,70*1.0,10*2.0,20*5.0,10*10.0,20*10.0,10*50.0,10*100.0,40*200.0,&
          10*400,10*1000,10*2000,10*5000,10*10000.0/
@@ -77,8 +78,8 @@ end do
 !*********************** Ejected Electron Probabilities ************************
 if(neEnergies.gt.100)goto 1000 !Only want to read the files once
 !* Created by ReadElectDist.f08 and ProbDist.f08
-open(unit=100,file='./Electron_Dist/eProbFunc.dat',status='old')
-open(unit=101,file='./Electron_Dist/aProbFunc.dat',status='old')
+open(unit=100,file='./Electron_Dist/eProbFuncNormalized.dat',status='old')
+open(unit=101,file='./Electron_Dist/aProbFuncNormalized.dat',status='old')
 read(100,*) neEnergies !Number of ejected electron energies
 read(101,*) neAngles !Number of ejected electron angles
 allocate(eEnergy(neEnergies)) !Allocate electron energy array
@@ -91,7 +92,7 @@ read(100,10001) eProbFunc !Electron energy probability distribution function
 read(101,10001) aProbFunc !Electron angle probability distribution function
 close(100) !Close eProbFunc file
 close(101) !Close aProbFunc file
-10000 format(10(F8.3,1x)) !Formatting for energies and angles (ProbDist.f08)
+10000 format(10(F9.3,1x)) !Formatting for energies and angles (ProbDist.f08)
 10001 format(10(ES9.3E2,1x)) !Formatting for probabilities (ProbDist.f08)
 1000 continue
 !******************************** Main Program *********************************
