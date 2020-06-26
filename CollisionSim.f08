@@ -1,9 +1,9 @@
-subroutine CollisionSim(E,SIMxs,SIMxs_Total,ChS,excite,elect,disso,PID)
+subroutine CollisionSim(E,xs,xs_Total,ChS,excite,elect,disso,PID)
 !*******************************************************************************
-!* Created by Stephen J. Houston 10.22.18
+!* Created by Stephen J. Houston 06.26.20
 !*******************************************************************************
 !* This subroutine reads in each individual cross-section and the total cross-
-!* section for all the processes for each energy and charge state for 35
+!* section for all the processes for each energy and charge state for 10
 !* different collision types (see processes below). Then uses a random
 !* number from 0-1 to and compare it to the probability for each
 !* collision process (individual cross-section divided by total cross-section).
@@ -17,11 +17,11 @@ subroutine CollisionSim(E,SIMxs,SIMxs_Total,ChS,excite,elect,disso,PID)
 !*		 Type: Integer
 !*		 Units: keV/u
 !*
-!*		SIMxs --> SIM cross-sections
+!*		xs --> Cross-sections
 !*		 Type: Real*8 Matrix
 !*		 Units: cm^-2
 !*
-!*		SIMxs_Total --> Sum of SIM cross-sections vs. energy and charge state
+!*		xs_Total --> Sum of cross-sections vs. energy and charge state
 !*		 Type: Real*8 Matrix
 !*		 Units: cm^-2
 !*
@@ -46,7 +46,7 @@ subroutine CollisionSim(E,SIMxs,SIMxs_Total,ChS,excite,elect,disso,PID)
 !*     Type: Integer
 !*     Units: None
 !*
-!*    PID --> Collision Type (1-7,0-4)
+!*    PID --> Collision Type (1-10)
 !*     Type: 2-Component Array, Integer
 !*     Units: None
 !*
@@ -57,28 +57,23 @@ implicit real*8(a-h,o-z)
 !**************************** Variable Declaration *****************************
 integer,intent(in) :: E!,PID(2)
 integer,intent(inout) :: ChS
-integer,intent(out) :: excite,elect,disso,PID(2)
+integer,intent(out) :: excite,elect,disso,PID
 
 integer SI,DI,TI,DCAI,SC,DC,TEX !Target processes
 integer SS,DS,SPEX,DPEX !Projectile processes
+integer nProc,Proc
 
-parameter(nProjProc=4) !Number of projectile processes
-parameter(nTargProc=7) !Number of target processes
-parameter(nInterpEnergies=2000) !Number of interpolated energies
-parameter(nChS=17) !Number of charge states from 0-16
-parameter(SI=1,DI=2,TI=3,DCAI=4,SC=5,DC=6,TEX=7) !Target process numbers
-parameter(SS=2,DS=3,SPEX=4,DPEX=5) !Projectile process numbers
+parameter(nProc=10) !Number of processes
+parameter(nInterpEnergies=25000) !Number of interpolated energies
+parameter(nChS=3) !Number of charge states from 0-16
+parameter(SI=1,DI=2,TI=3,SS=4,DS=5,SC=6,DC=7,TEX=8,PEX=9,ES=10)
 parameter(k1=0,k2=0,lux=3) !lux set to 3 for optimal randomness and timeliness
 
-real*8,dimension(nChS,nInterpEnergies),intent(in) :: SIMxs_Total
-real*8,dimension(nTargProc,1+nProjProc,nChS,nInterpEnergies),intent(in) :: SIMxs
-
-integer tProc,pProc
+real*8,dimension(nChS,nInterpEnergies),intent(in) :: xs_Total
+real*8,dimension(nProc,nChS,nInterpEnergies),intent(in) :: xs
 
 real*8 sumProb
-real*8,dimension(nTargProc,1+nProjProc) :: Prob
-!* Prob has an additonal projectile process which is no projectile process
-!* i.e. SI, SI+SS, SI+DS, SI+SPEX, SI+DPEX (respectively)
+real*8,dimension(nProc) :: Prob
 
 real ranVecB(1) !Number from RNG
 !**************************** Initialize Variables *****************************
@@ -89,11 +84,9 @@ sumProb=0.0;Prob=0.0;excite=0;elect=0;diss=0;PID=0
 !* dividing it by the total cross-section.
 !*******************************************************************************
 ! goto 2000
-do tProc=1,nTargProc !Loop through every target process
-  do pProc=1,nProjProc+1 !Loop through every projectile process plus 1
-    Prob(tProc,pProc)=SIMxs(tProc,pProc,ChS,E)/SIMxs_Total(ChS,E)
-  end do !End loop through every projectile process plus 1
-end do !End loop through every target process
+do Proc=1,nProc !Loop through every process
+  Prob(Proc)=xs(Proc,ChS,E)/xs_Total(ChS,E)
+end do !End loop through every process
 if(sum(Prob).ge.1.00001.or.sum(Prob).le.0.9999)then !Warning if probability is bad
   write(206,*) "CollisionSim.f08: WARNING: Normalized collision probability is &
              &not close enough to 1. The value is: ", sum(Prob)
@@ -115,23 +108,20 @@ end if
 !*          if so write out the final charge state and process
 !*  Step 4) if not, parce the next sub-interval of [0,1] from [P(SI),P(DI)]
 !*  Step 5) Repeat step 3.
-!*  Step 6) Repreat step 4&5 through all 35 collision types until collision is
+!*  Step 6) Repreat step 4&5 through all 10 collision types until collision is
 !*          determined.
 !*
-!* PID(1) Target Processes           Abbreviation  Charge Change  Sulfur Excite
-!*   1    Single Ionization              (SI)            0              0
-!*   2    Double Ionization              (DI)            0              0
-!*   3    Transfer Ionization            (TI)           -1              0
-!*   4    Double-Capture Autoionization  (DCAI)         -1            2->0
-!*   5    Single Capture                 (SC)           -1              1
-!*   6    Double Capture                 (DC)           -2              2
-!*   7    Target Excitation              (TEX)           0              0
-!* PID(2) Projectile Processes
-!*   1    No projectile process occurred
-!*   2    Single Stripping               (SS)           +1              0
-!*   3    Double Stripping               (DS)           +2              0
-!*   4    Single Projectile Excitation   (SPEX)          0              1
-!*   5    Double Projectile Excitation   (DPEX)          0              2
+!* PID    Target Processes      Abbreviation  Charge Change  Hydrogen excitation
+!*   1    Single Ionization         (SI)            0               0
+!*   2    Double Ionization         (DI)            0               0
+!*   3    Transfer Ionization       (TI)           -1               0
+!*   4    Single Stripping          (SS)           +1               0
+!*   5    Double Stripping          (DS)           +2               0
+!*   6    Single Capture            (SC)           -1               1
+!*   7    Double Capture            (DC)           -2               2
+!*   8    Target Excitation         (TEX)           0               0
+!*   9    Projectile Excitation     (PEX)           0               1
+!*  10    Elastic Scattering        (ES)            0               0
 !*
 !* Some processes will dissociate H2 always, sometimes, or never. This is
 !* followed with the "disso" variable.
@@ -140,77 +130,69 @@ end if
 !* disso = 2, always dissociates
 !*
 !* PID is used as a processes identification
-!*
 !*******************************************************************************
 call ranlux(ranVecB,1) !Only need 1 random number every time there's a collision
 if(ranVecB(1).gt.0.99999)ranVecB(1)=ranVecB(1)-0.00001
-do tProc=1,nTargProc !Loop through every target process
-  do pProc=1,nProjProc+1 !Loop through every projectile process plus 1
-    sumProb=sumProb+Prob(tProc,pProc) !Keep adding the probability
-    if(ranVecB(1).le.sumProb)goto 1000 !If it falls within range, get out
-  end do !End loop through every projectile process plus 1
-end do !End loop through every target process
+do Proc=1,nProc !Loop through every process
+  sumProb=sumProb+Prob(Proc) !Keep adding the probability
+  if(ranVecB(1).le.sumProb)goto 1000 !If it falls within range, get out
+end do !End loop through every process
 !If we get into this portion, it means that ranVecB was .gt. sumProb
 write(206,*)'CollisionSim.f08: ERROR: Random number greater than normalized &
 &probability:', ranVecB(1), sumProb
 STOP 'CollisionSim.f08: Stopping program...'
 1000 continue
-PID(1)=tProc
-PID(2)=pProc !1 is nothing, 2-5 are SS, DS, SPEX, DPEX
+PID=Proc
 ! 2000 continue
-! tProc=PID(1)
-! pProc=PID(2)
-if(tProc.eq.SI)then !Single Ionization
+if(Proc.eq.SI)then !Single Ionization
   ChS=ChS !Charge state stays the same
   excite=0 !Ion isn't excited
   elect=1 !One electron ejected
   disso=1 !10% chance of dissociation
-elseif(tProc.eq.DI)then !Double Ionization
+elseif(Proc.eq.DI)then !Double Ionization
   ChS=ChS
   excite=0
   elect=2
   disso=2
-elseif(tProc.eq.TI)then !Transfer Ionization
+elseif(Proc.eq.TI)then !Transfer Ionization
   ChS=ChS-1
   excite=0
   elect=1
   disso=2
-elseif(tProc.eq.DCAI)then !Double Capture Autoionization
-  ChS=ChS-1
-  excite=0
+elseif(Proc.eq.SS)then !Single Stripping
+  ChS=ChS+1
+  excite=excite
   elect=1
-  disso=2
-elseif(tProc.eq.SC)then !Single Capture
+  disso=1
+elseif(Proc.eq.DS)then !Double Stripping
+  ChS=ChS+2
+  excite=excite
+  elect=2
+  disso=1
+elseif(Proc.eq.SC)then !Single Capture
   ChS=ChS-1
   excite=1
   elect=0
   disso=1
-elseif(tProc.eq.DC)then !Double Capture
+elseif(Proc.eq.DC)then !Double Capture
   ChS=ChS-2
   excite=2
   elect=0
   disso=2
-elseif(tProc.eq.TEX)then !Target Excitation
+elseif(Proc.eq.TEX)then !Target Excitation
   ChS=ChS
   excite=0
   elect=0
   disso=0
-end if !End of target processes
-if(pProc.eq.SS)then !Single Stripping
-  ChS=ChS+1 !Strips a single electron - charge state changes
-  excite=excite !No additional excitation
-  elect=elect+1 !Ejects an additional electron
-elseif(pProc.eq.DS)then !Double Stripping
-  ChS=ChS+2
-  excite=excite
-  elect=elect+2
-elseif(pProc.eq.SPEX)then !Single Projectile Excitation
+elseif(Proc.eq.PEX)then !Projectile Excitation
   ChS=ChS
-  excite=excite+1
-  elect=elect
-elseif(pProc.eq.DPEX)then !Double Projectile Excitation
+  excite=1
+  elect=0
+  disso=1
+elseif(Proc.eq.ES)then !Elastic Scattering
   ChS=ChS
-  excite=excite+2
-  elect=elect
-end if !End of projectile processes
+  excite=0
+  elect=0
+  disso=0
+end if !End of processes
 end subroutine
