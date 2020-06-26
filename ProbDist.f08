@@ -255,14 +255,14 @@ do Proc=1,nProc !Loop through every process
       call simp(neAngles,dA,tmpa,integralSDXSa)
       call simp(nInterpEng,dEi,tmpei,integralSDXSei)
       call simp(nInterpAng,dAi,tmpai,integralSDXSai)
-      if(integralSDXSei/xs(Proc,ChS,ionEng,j).lt.0.8.or.&
-      integralSDXSei/xs(Proc,ChS,ionEng,j).gt.1.20)&
+      ! if(integralSDXSei/xs(Proc,ChS,ionEng,j).lt.0.8.or.&
+      ! integralSDXSei/xs(Proc,ChS,ionEng,j).gt.1.20)&
         write(*,'(2x,A4,"-E",I4,2x,I5,3(2x,ES8.2E2),2(1x,F6.2))') &
         Processes(Proc),ChS-2,Energy(ionEng),integralSDXSe,integralSDXSei,&
         xs(Proc,ChS,ionEng,j),integralSDXSe/xs(Proc,ChS,ionEng,j),&
         integralSDXSei/xs(Proc,ChS,ionEng,j)
-      if(integralSDXSai/xs(Proc,ChS,ionEng,j).lt.0.8.or.&
-      integralSDXSai/xs(Proc,ChS,ionEng,j).gt.1.20)&
+      ! if(integralSDXSai/xs(Proc,ChS,ionEng,j).lt.0.8.or.&
+      ! integralSDXSai/xs(Proc,ChS,ionEng,j).gt.1.20)&
         write(*,'(2x,A4,"-A",I4,2x,I5,3(2x,ES8.2E2),2(1x,F6.2))')&
         ! write(*,'(2x,A4,"-A",I4,2x,I5,2x,ES8.2E2,2x,ES8.2E2,11x,F6.2,1x,F6.2)')&
         Processes(Proc),ChS-2,Energy(ionEng),integralSDXSa,integralSDXSai,&
