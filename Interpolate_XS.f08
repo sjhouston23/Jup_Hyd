@@ -4,9 +4,9 @@ program InterpolateSIMXS
 !*******************************************************************************
 !* This program reads in cross-sections for hydrogen from a .txt files and
 !* interpolates them using both loglog linear and loglog spline interpolation.
-!* All the cross-sections are from Schultz et al. (2019).
-!* The initial cross-sections are stored in SIMXSall.dat, which is generated
-!* with SIMXSCalculation.f08 in the SulfurXS directory.
+!* All the cross-sections are from Schultz et al. (2020).
+!* The initial cross-sections are stored in OG_Integral_XS_CTMC.txt, which is
+!* was hand made from the tables in the paper.
 !*******************************************************************************
 
 implicit none!real*8(a-h,o-z)
