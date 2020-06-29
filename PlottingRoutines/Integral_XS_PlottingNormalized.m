@@ -2,7 +2,7 @@ cd('~/Documents/Juno/Jup_Hyd/XS/');
 % fname = 'OG_Integral_XS_CTMC.txt';
 fname = 'OG_Integral_XS_Normalized.txt';
 % fname1 = 'OG_Integral_XS_CTMC_Interpolated.dat';
-fname1 = 'OG_Integral_XS_Normalized_Interpolated.dat';
+fname1 = 'Integral_XS_Normalized_Interpolated.dat';
 fid = fopen(fname);
 fid1 = fopen(fname1);
 
@@ -63,32 +63,52 @@ nProcN = 0;
 fclose(fid);
 fclose(fid1);
 
-figure(1)
-colors = [1 0 0; 0 1 0; 0 0 1]; 
-for i = 1:nProc
-    subplot(2,5,i)
-    hold on
-    for j = 1:3
-        loglog(energy(:,j),xs(:,j,i),'Color',colors(j,:),'LineWidth',2,'MarkerSize',6)
-    end
-    plot(energyN(:,1),xsN(:,1,i),'k','LineWidth',2,'LineStyle','--')
-    for j = 1:3
-        loglog(energyN(:,j),xsN(:,j,i),'Color',colors(j,:),'LineWidth',2,'LineStyle','--')
-    end
-    title(procNames{i});
-%     if i == 1
-        legend({'H^{+}','H','H^{-}','Interpolated'})
+% figure(1)
+% colors = [1 0 0; 0 1 0; 0 0 1]; 
+% for i = 1:nProc
+%     subplot(2,5,i)
+%     hold on
+%     for j = 1:3
+%         loglog(energy(:,j),xs(:,j,i),'Color',colors(j,:),'LineWidth',2,'MarkerSize',6)
 %     end
+%     plot(energyN(:,1),xsN(:,1,i),'k','LineWidth',2,'LineStyle','--')
+%     for j = 1:3
+%         loglog(energyN(:,j),xsN(:,j,i),'Color',colors(j,:),'LineWidth',2,'LineStyle','--')
+%     end
+%     title(procNames{i});
+% %     if i == 1
+%         legend({'H^{+}','H','H^{-}','Interpolated'})
+% %     end
+%     xlabel('Projectile Energy [keV]')
+%     ylabel('Cross-Section [cm^{-2}]')
+%     xticks([1 10 100 1000 10000 100000])
+% %     ylim([max(max(xs(:,:,i)))/1000 max(max(xs(:,:,i)))])
+%     xlim([1 1e5])
+%     set(gca,'FontSize',16,'FontWeight','bold','XMinorTick','on','XScale',...
+%     'log','YMinorTick','on','YScale','log')
+% %     axis square
+%     hold off
+% %     keyboard
+% end
+
+figure(2)
+colors = [0 0 0;colormap(jet(9))];
+titles = ["H^{-}" "H" "H^{+}"];
+for i = 1:3
+    subplot(1,3,i)
+    hold on
+    for j = 1:nProc
+        loglog(energyN(:,i),xsN(:,i,j),'Color',colors(j,:),'LineWidth',2)
+    end
+    legend(procNames)
+    title(titles{i})
     xlabel('Projectile Energy [keV]')
     ylabel('Cross-Section [cm^{-2}]')
     xticks([1 10 100 1000 10000 100000])
-%     ylim([max(max(xs(:,:,i)))/1000 max(max(xs(:,:,i)))])
-    xlim([1 1e5])
+    ylim([1e-25 1e-14])
     set(gca,'FontSize',16,'FontWeight','bold','XMinorTick','on','XScale',...
-    'log','YMinorTick','on','YScale','log'),
-%     axis square
+    'log','YMinorTick','on','YScale','log')
     hold off
-%     keyboard
 end
 
 % fgetl(fid)
