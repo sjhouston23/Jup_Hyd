@@ -239,17 +239,17 @@ do Proc=1,nProc !Loop through every process
         ! SDXSa(Proc,ChS,ionEng,Ang)
       end do
       do Eng=1,neEnergies
-        tmpe(Eng)=SDXSe(Proc,ChS,ionEng,Eng)*factors(Proc,ChS,ionEng) !Create a single array for Simp
+        tmpe(Eng)=SDXSe(Proc,ChS,ionEng,Eng)!*factors(Proc,ChS,ionEng) !Create a single array for Simp
       end do
       do Ang=1,neAngles
-        tmpa(Ang)=SDXSa(Proc,ChS,ionEng,Ang)*sin(eAngleRad(Ang))*2*pi*factors(Proc,ChS,ionEng)
+        tmpa(Ang)=SDXSa(Proc,ChS,ionEng,Ang)*sin(eAngleRad(Ang))*2*pi!*factors(Proc,ChS,ionEng)
       end do
       do Eng=1,nInterpEng
-        tmpei(Eng)=exp(InterpSDXSe(Proc,ChS,ionEng,Eng))*factors(Proc,ChS,ionEng) !Create array for Simp
+        tmpei(Eng)=exp(InterpSDXSe(Proc,ChS,ionEng,Eng))!*factors(Proc,ChS,ionEng) !Create array for Simp
       end do
       do Ang=1,nInterpAng
         tmpai(Ang)=exp(InterpSDXSa(Proc,ChS,ionEng,Ang))*&
-                   sin(InterpAngleRad(Ang))*2*pi*factors(Proc,ChS,ionEng)
+                   sin(InterpAngleRad(Ang))*2*pi!*factors(Proc,ChS,ionEng)
       end do
       call simp(neEnergies,dE,tmpe,integralSDXSe)
       call simp(neAngles,dA,tmpa,integralSDXSa)
