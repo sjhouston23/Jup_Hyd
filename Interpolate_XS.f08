@@ -234,7 +234,7 @@ do j=1,2 ! Loop through CTMC and normalized
   end do
   close(300)
 end do
-3001 format(I6,1x,3(3x,ES9.3e2))
+3001 format(I6,2x,3(1x,ES11.5e2))
 3002 format(A)
 
 do j=2,2 ! Loop through normalized factors
