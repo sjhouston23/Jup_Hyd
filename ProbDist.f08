@@ -39,7 +39,7 @@ parameter(neEnergies=140) !Number of electron ejection energies (0.005 - 72875 e
 parameter(nInterpEng=nInterp*(neEnergies-1)+1) !Number of interpolated energies
 parameter(neAngles=46) !Number of electron ejection angles (0.05° - 179.5°)
 parameter(nInterpAng=nInterp*(neAngles-1)+1) !Number of interpolated angles
-parameter(nChS=3) !Number of charge states from +1,0,-1
+parameter(nChS=3) !Number of charge states from -1,0,+1
 parameter(SI=1,DI=2,TI=3,SS=4,DS=5) !Electron producing processes
 parameter(pi=4.0*atan(1.0d0)) !pi to convert degrees to radians
 
@@ -69,11 +69,11 @@ data Processes/'  SI','  DI','  TI','  SS','  DS'/
 !***************** Read in singly differential cross-sections ******************
 open(unit=100,file='./XS/SDXS_E-30.txt')
 do Proc=1,nProc !Loop through each process
-  do ChS=1,nChS !Loop through each charge state
+  do ChS=nChS,1,-1 !Loop through each charge state
     ! write(*,*) Processes(Proc), ChS
-    if((Proc.eq.TI.and.ChS.eq.3)&
-    .or.(Proc.eq.SS.and.ChS.eq.1)&
-    .or.(Proc.eq.DS.and.ChS.eq.1)&
+    if((Proc.eq.TI.and.ChS.eq.1)&
+    .or.(Proc.eq.SS.and.ChS.eq.3)&
+    .or.(Proc.eq.DS.and.ChS.eq.3)&
     .or.(Proc.eq.DS.and.ChS.eq.2))then !Some processes don't have specific ChS's
       do eEng=1,neEnergies
         do ionEng=1,nEnergies
@@ -124,7 +124,7 @@ do Proc=1,nProc
     read(100,*) tline
   end do
   do Eng=1,nEnergies
-    read(100,1001) ndum,(xs(Proc,ChS,Eng,1),ChS=1,nChS)
+    read(100,1001) ndum,(xs(Proc,ChS,Eng,1),ChS=nChS,1,-1)
     ! write(*,*) ndum,(xs(Proc,ChS,Eng,1),ChS=1,nChS),Proc,Eng
   end do
 end do
@@ -137,7 +137,7 @@ do Proc=1,nProc
     read(100,*) tline
   end do
   do Eng=1,nEnergies
-    read(100,1002) ndum,(xs(Proc,ChS,Eng,2),factors(Proc,ChS,Eng),ChS=1,nChS)
+    read(100,1002) ndum,(xs(Proc,ChS,Eng,2),factors(Proc,ChS,Eng),ChS=nChS,1,-1)
     ! write(*,*) ndum,(xs(Proc,ChS,Eng,2),factors(Proc,ChS,Eng),ChS=1,nChS),Proc,Eng
   end do
 end do
@@ -205,7 +205,7 @@ do Ang=1,nInterpAng
   end if
 end do
 !******************************** Main Program *********************************
-j=2
+j=1
 do Proc=1,nProc !Loop through every process
   write(*,*) '---------- NEW PROCESS ----------'
   do ChS=1,nChS !Loop through every charge state
@@ -301,8 +301,8 @@ do Proc=1,nProc !Loop through every process
   end do !End of charge state do-loop
 end do !End of processes do-loop
 ! stop
-open(unit=200,file='./Electron_Dist/eProbFuncNormalized.dat') !Electron energy prob dist
-open(unit=201,file='./Electron_Dist/aProbFuncNormalized.dat') !Electron angle prob dist
+open(unit=200,file='./Electron_Dist/eProbFunc.dat') !Electron energy prob dist
+open(unit=201,file='./Electron_Dist/aProbFunc.dat') !Electron angle prob dist
 write(200,*) nInterpEng !Write out number of energy interpolations
 write(201,*) nInterpAng !Write out number of angle interpolations
 write(200,2000) InterpEnergy

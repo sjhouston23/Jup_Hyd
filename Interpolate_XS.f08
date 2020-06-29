@@ -94,11 +94,11 @@ close(100)
 102 format(I6.1,3(4x,ES8.2E2,4x,F4.3))
 open(unit=201,file='./XS/Integral_XS_Normalized_Summed.dat')
 !* Calculate the sum of the integral cross-sections and write them out
-write(200,*) 'Energy    H^+        H        H^-'
-write(201,*) 'Energy    H^+        H        H^-'
+write(200,*) 'Energy    H^-        H        H^+'
+write(201,*) 'Energy    H^-        H        H^+'
 do j = 1,2
   do i=1,nEnergies
-    write(199+j,20400) int(Energy(i)),(sum(xs(ChS,i,:,j)),ChS=1,nChS)
+    write(199+j,20400) int(Energy(i)),(sum(xs(ChS,i,:,j)),ChS=nChS,1,-1)
     do ChS=1,nChS
       SigTot(i,ChS,j)=sum(xs(ChS,i,:,j))
     end do
@@ -197,39 +197,39 @@ do j=1,2 ! Loop through CTMC and normalized
   end if
   do Proc=1,nProc !Loop through every process
     if(Proc.eq.SI)then
-      write(300,3002) 'SI   ---------- H^{q+} + H_2; q = 1, 0, -1'
+      write(300,3002) 'SI   ---------- H^{q+} + H_2; q = -1, 0, +1'
     elseif(Proc.eq.DI)then
       write(300,3002) '!'
-      write(300,3002) 'DI   ---------- H^{q+} + H_2; q = 1, 0, -1'
+      write(300,3002) 'DI   ---------- H^{q+} + H_2; q = -1, 0, +1'
     elseif(Proc.eq.TI)then
       write(300,3002) '!'
-      write(300,3002) 'TI   ---------- H^{q+} + H_2; q = 1, 0'
+      write(300,3002) 'TI   ---------- H^{q+} + H_2; q = 0, +1'
     elseif(Proc.eq.SS)then
       write(300,3002) '!'
-      write(300,3002) 'SS   ---------- H^{q+} + H_2; q = 0, -1'
+      write(300,3002) 'SS   ---------- H^{q+} + H_2; q = -1, 0'
     elseif(Proc.eq.DS)then
       write(300,3002) '!'
       write(300,3002) 'DS   ---------- H^{q+} + H_2; q = -1'
     elseif(Proc.eq.SC)then
       write(300,3002) '!'
-      write(300,3002) 'SC   ---------- H^{q+} + H_2; q = 1, 0'
+      write(300,3002) 'SC   ---------- H^{q+} + H_2; q = 0, +1'
     elseif(Proc.eq.DC)then
       write(300,3002) '!'
-      write(300,3002) 'DC   ---------- H^{q+} + H_2; q = 1'
+      write(300,3002) 'DC   ---------- H^{q+} + H_2; q = +1'
     elseif(Proc.eq.TEX)then
       write(300,3002) '!'
-      write(300,3002) 'TEX  ---------- H^{q+} + H_2; q = 1, 0, -1'
+      write(300,3002) 'TEX  ---------- H^{q+} + H_2; q = -1, 0, +1'
     elseif(Proc.eq.PEX)then
       write(300,3002) '!'
       write(300,3002) 'PEX   ---------- H^{q+} + H_2; q = 0'
     elseif(Proc.eq.ES)then
       write(300,3002) '!'
-      write(300,3002) 'ElasticScattering - H^{q+} + H_2; q = 1, 0, -1'
+      write(300,3002) 'ElasticScattering - H^{q+} + H_2; q = -1, 0, +1'
     endif
     write(300,3002) 'Energy     Integral Cross Sections [cm^-2]'
-    write(300,3002) ' [keV]       H^+          H          H^-'
+    write(300,3002) ' [keV]       H^-          H          H^+'
     do E=1,nInterpEnergies !Loop through every energy
-      write(300,3001) E,(xsInterp(Proc,ChS,E,j),ChS=1,nChS)
+      write(300,3001) E,(xsInterp(Proc,ChS,E,j),ChS=nChS,1,-1)
     end do
   end do
   close(300)
@@ -248,39 +248,39 @@ do j=2,2 ! Loop through normalized factors
   end if
   do Proc=1,nProc !Loop through every process
     if(Proc.eq.SI)then
-      write(300,3002) 'SI   ---------- H^{q+} + H_2; q = 1, 0, -1'
+      write(300,3002) 'SI   ---------- H^{q+} + H_2; q = -1, 0, +1'
     elseif(Proc.eq.DI)then
       write(300,3002) '!'
-      write(300,3002) 'DI   ---------- H^{q+} + H_2; q = 1, 0, -1'
+      write(300,3002) 'DI   ---------- H^{q+} + H_2; q = -1, 0, +1'
     elseif(Proc.eq.TI)then
       write(300,3002) '!'
-      write(300,3002) 'TI   ---------- H^{q+} + H_2; q = 1, 0'
+      write(300,3002) 'TI   ---------- H^{q+} + H_2; q = 0, +1'
     elseif(Proc.eq.SS)then
       write(300,3002) '!'
-      write(300,3002) 'SS   ---------- H^{q+} + H_2; q = 0, -1'
+      write(300,3002) 'SS   ---------- H^{q+} + H_2; q = -1, 0'
     elseif(Proc.eq.DS)then
       write(300,3002) '!'
       write(300,3002) 'DS   ---------- H^{q+} + H_2; q = -1'
     elseif(Proc.eq.SC)then
       write(300,3002) '!'
-      write(300,3002) 'SC   ---------- H^{q+} + H_2; q = 1, 0'
+      write(300,3002) 'SC   ---------- H^{q+} + H_2; q = 0, +1'
     elseif(Proc.eq.DC)then
       write(300,3002) '!'
-      write(300,3002) 'DC   ---------- H^{q+} + H_2; q = 1'
+      write(300,3002) 'DC   ---------- H^{q+} + H_2; q = +1'
     elseif(Proc.eq.TEX)then
       write(300,3002) '!'
-      write(300,3002) 'TEX  ---------- H^{q+} + H_2; q = 1, 0, -1'
+      write(300,3002) 'TEX  ---------- H^{q+} + H_2; q = -1, 0, +1'
     elseif(Proc.eq.PEX)then
       write(300,3002) '!'
       write(300,3002) 'PEX   ---------- H^{q+} + H_2; q = 0'
     elseif(Proc.eq.ES)then
       write(300,3002) '!'
-      write(300,3002) 'ElasticScattering - H^{q+} + H_2; q = 1, 0, -1'
+      write(300,3002) 'ElasticScattering - H^{q+} + H_2; q = -1, 0, +1'
     endif
     write(300,3002) 'Energy                 Factors'
-    write(300,3002) ' [keV]       H^+          H          H^-'
+    write(300,3002) ' [keV]       H^-          H          H^+'
     do E=1,nInterpEnergies !Loop through every energy
-      write(300,3003) E,(xsInterp(Proc,ChS,E,2)/xsInterp(Proc,ChS,E,1),ChS=1,nChS)
+      write(300,3003) E,(xsInterp(Proc,ChS,E,2)/xsInterp(Proc,ChS,E,1),ChS=nChS,1,-1)
     end do
   end do
   close(300)
@@ -292,11 +292,11 @@ end do
 open(unit=400,file='./XS/Integral_XS_CTMC_Sum_Interpolated.dat')
 open(unit=401,file='./XS/Integral_XS_Normalized_Sum_Interpolated.dat')
 !* Calculate the sum of the integral cross-sections and write them out
-write(400,3002) 'Energy       H^+          H          H^-'
-write(401,3002) 'Energy       H^+          H          H^-'
+write(400,3002) 'Energy       H^-          H          H^+'
+write(401,3002) 'Energy       H^-          H          H^+'
 do j = 1,2
   do i=1,nInterpEnergies
-    write(399+j,3004) i,(sum(xsInterp(:,ChS,i,j)),ChS=1,nChS)
+    write(399+j,3004) i,(sum(xsInterp(:,ChS,i,j)),ChS=nChS,1,-1)
     ! do ChS=1,nChS
     !   SigTot(i,ChS,j)=sum(xsInterp(ChS,i,:,j))
     ! end do
