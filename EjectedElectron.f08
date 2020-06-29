@@ -48,7 +48,7 @@ real*8,intent(in) :: E !Ion energy
 real*8,intent(out) :: electron_energy,electron_angle
 
 parameter(neProc=5) !Number of processes that eject electrons
-parameter(nChS=3) !Number of charge states from 0-16
+parameter(nChS=3) !Number of charge states from -1 to +1
 parameter(nEnergies=15) !Number of inital energies
 parameter(nE2strBins=260) !Number of 2 stream bins
 
