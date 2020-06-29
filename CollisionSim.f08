@@ -65,7 +65,7 @@ integer nProc,Proc
 
 parameter(nProc=10) !Number of processes
 parameter(nInterpEnergies=25000) !Number of interpolated energies
-parameter(nChS=3) !Number of charge states from 0-16
+parameter(nChS=3) !Number of charge states from -1, 0, +1
 parameter(SI=1,DI=2,TI=3,SS=4,DS=5,SC=6,DC=7,TEX=8,PEX=9,ES=10)
 parameter(k1=0,k2=0,lux=3) !lux set to 3 for optimal randomness and timeliness
 
@@ -73,11 +73,14 @@ real*8,dimension(nChS,nInterpEnergies),intent(in) :: xs_Total
 real*8,dimension(nProc,nChS,nInterpEnergies),intent(in) :: xs
 
 real*8 sumProb
-real*8,dimension(nProc) :: Prob
+real*8,dimension(nProc) :: Prob,Ptmp
 
 real ranVecB(1) !Number from RNG
+character(len=3),dimension(nProc) :: ProcNames !Target processes
+
+data ProcNames/'SI ','DI ','TI ','SS ','DS ','SC ','DC ','TEX','PEX','ES '/
 !**************************** Initialize Variables *****************************
-sumProb=0.0;Prob=0.0;excite=0;elect=0;diss=0;PID=0
+sumProb=0.0;Prob=0.0;excite=0;elect=0;diss=0;PID=0;Ptmp=0.0
 !******************************** Main Program *********************************
 !******************** Collision-Type Probability Calculation *******************
 !* Calculate the transition probabilities by taking the collision process XS and
@@ -88,10 +91,17 @@ do Proc=1,nProc !Loop through every process
   Prob(Proc)=xs(Proc,ChS,E)/xs_Total(ChS,E)
 end do !End loop through every process
 if(sum(Prob).ge.1.00001.or.sum(Prob).le.0.9999)then !Warning if probability is bad
-  write(206,*) "CollisionSim.f08: WARNING: Normalized collision probability is &
+  write(*,*) "CollisionSim.f08: WARNING: Normalized collision probability is &
              &not close enough to 1. The value is: ", sum(Prob)
-  write(206,*) "tempQ: ", ChS, "Energy: ", E
+  write(*,*) 'Process  Proc Prob    Proc XS  Total XS   Prob SUM'
+  do Proc=1,nProc !Loop through every process
+    Ptmp(Proc)=xs(Proc,ChS,E)/xs_Total(ChS,E)
+    write(*,100) ProcNames(Proc),Ptmp(Proc),xs(Proc,ChS,E),xs_Total(ChS,E),sum(Ptmp)
+  end do !End loop through every process
+  ! stop
+  write(*,*) "tempQ: ", ChS, "Energy: ", E
 end if
+100 format(2x,A4,3x,F10.8,2x,ES9.3E2,1x,ES9.2E2,1x,F10.8)
 !*******************************************************************************
 !************************* Collision-Type Determination ************************
 !*******************************************************************************
@@ -138,7 +148,7 @@ do Proc=1,nProc !Loop through every process
   if(ranVecB(1).le.sumProb)goto 1000 !If it falls within range, get out
 end do !End loop through every process
 !If we get into this portion, it means that ranVecB was .gt. sumProb
-write(206,*)'CollisionSim.f08: ERROR: Random number greater than normalized &
+write(*,*)'CollisionSim.f08: ERROR: Random number greater than normalized &
 &probability:', ranVecB(1), sumProb
 STOP 'CollisionSim.f08: Stopping program...'
 1000 continue
