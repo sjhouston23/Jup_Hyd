@@ -16,6 +16,7 @@ LoopRead.sh
 2Stream/common
 2Stream/output
 2Stream/Plots
+Archive/
 Atmosphere/Tp*
 Atmosphere/IRTF*
 Original_XS_Data*
