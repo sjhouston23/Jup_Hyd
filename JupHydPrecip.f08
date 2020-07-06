@@ -83,7 +83,7 @@ parameter(SI=1,DI=2,TI=3,SS=4,DS=5,SC=6,DC=7,TEX=8,PEX=9,ES=10)
 ! *****
 
 !CHARGE STATES (ChS)
-integer ChS,ChS_init,ChS_old,nChS !Number of hydrogen charge states from -1, 0, +1
+integer ChS,ChS_init,ChS_old,nChS !Number of hydrogen charge states: -1, 0, +1
 parameter(nChS=3)
 !ENERGY
 integer Eng,energy,nEnergiesNorm,nEnergiesJuno !Number of inital ion energies
@@ -114,10 +114,11 @@ parameter(mass=1.00784)
 !OTHER VARIABLES
 integer trial,excite,elect,disso,PID,nIons
 integer numSim,dpt,maxDpt
+character(len=100) arg !For reading in trial number on the cluster
 
 integer(kind=int64),dimension(nProc) :: collisions !Counter
 real*8,dimension(nProc) :: dEcollisions !Counter
-integer(kind=int64),dimension(nProc,nChS,atmosLen) :: Hydrogen
+integer(kind=int64),dimension(nProc,nChS,atmosLen) :: hydrogen
 real*8 incB,kappa,pangle
 real*8,dimension(nChS,nInterpEnergies) :: xs_Total !SigTot for dN calculation
 real*8,dimension(nProc,nChS,nInterpEnergies) :: xs !All xs
@@ -125,7 +126,7 @@ real*8,dimension(nProc,nChS,nInterpEnergies) :: xs !All xs
 !* Ejected electron variables:
 integer neProc !Number of processes that eject electrons
 integer nE2strBins !Number of 2 stream bins
-integer eSI,eDI,eTI,eDA,eSS,eDS !Electron ejection processes
+integer eSI,eDI,eTI,eSS,eDS !Electron ejection processes
 
 parameter(neProc=5) !Number of processes that eject electrons
 parameter(nE2strBins=260) !Number of 2 stream bins
@@ -198,7 +199,8 @@ do Proc=1,nProc
     read(203,20300) intdum,(xs(Proc,ChS,Eng),ChS=1,nChS)
   end do
 end do
-open(unit=204,file='./XS/Integral_XS_Normalized_Sum_Interpolated.dat',status='old')
+open(unit=204,file='./XS/Integral_XS_Normalized_Sum_Interpolated.dat',&
+     status='old')
 read(204,*)
 do Eng=1,nInterpEnergies
   read(204,20300) intdum,(xs_Total(ChS,Eng),ChS=1,nChS)
@@ -259,8 +261,10 @@ end if
 !*******************************************************************************
 !******************************** MAIN PROGRAM *********************************
 !*******************************************************************************
-nIons=1000 !Number of ions that are precipitating
-trial=1 !The seed for the RNG
+nIons=250 !Number of ions that are precipitating
+! trial=12 !The seed for the RNG
+call get_command_argument(1,arg)
+read(arg,'(I100)') trial !The seed for the RNG
 do run=15,15!1,nEnergies !Loop through different initial ion energies
   call system_clock(t3,clock_rate,clock_max) !Comp. time of each run
   energy=int(IonEnergy(run))
@@ -276,7 +280,7 @@ do run=15,15!1,nEnergies !Loop through different initial ion energies
   call ranlux(angle,nIons) !Calculate all the angles to be used
 !********************* Reset Counters For New Ion Energies *********************
   Hp =0;totalElect=0;dEcollisions=0.0
-  H2p=0;Hydrogen    =0;electFwd  =0;electBwd  =0;maxDpt   =0
+  H2p=0;hydrogen    =0;electFwd  =0;electBwd  =0;maxDpt   =0
   H2Ex  =0;collisions=0;HydVsEng  =0
   SPvsEng=0.0;xsTotvsEng=0.0;dEvsEng=0.0;dNvsEng=0.0;nSPions=0
 !************************ Ion Precipitation Begins Here ************************
@@ -290,7 +294,7 @@ do run=15,15!1,nEnergies !Loop through different initial ion energies
     numSim=energy*1000 !Number of simulations for a single ion. Must be great !~
                        !enough to allow the ion to lose all energy
     E=energy           !Start with initial ion energy
-    ChS_init=2         !1 is an initial charge state of -1, 3 is +1
+    ChS_init=3         !1 is an initial charge state of -1, 3 is +1
     ChS=ChS_init       !Set the charge state variable that will be changed
     ChS_old=ChS_init   !Need another charge state variable for energyLoss.f08
     dNTot=0.0          !Reset the column density to the top of the atm.
@@ -301,7 +305,8 @@ do run=15,15!1,nEnergies !Loop through different initial ion energies
     excite=0           !CollisionSim output
     PID=0              !Process identification numbers
     !*****************************
-    pangle=(2.0*atan(1.0))-acos(angle(ion)) !Pitch angle calculation has a
+    pangle=(2.0*atan(1.0))-acos(0.0) !Pitch angle calculation has a
+    ! pangle=(2.0*atan(1.0))-acos(angle(ion)) !Pitch angle calculation has a
     !cosine dist. Straight down is pitch angle of 0, random number must be 0
     write(*,*) 'Ion Number: ',ion,' Pitch angle: ',pangle*90/acos(0.0)
     kappa=1.0/(cos(pangle)*cos(incB)) !Used to convert from ds to dz
@@ -334,7 +339,7 @@ do run=15,15!1,nEnergies !Loop through different initial ion energies
           dZTot=dZTot-dZ*1e-5 !Convert to km and keep subtracting from alt.
           do k=1,atmosLen !Loop through the atmosphere again
             if(dZTot.gt.altitude(k))then
-              dNTot=totalCD(k) !Check the purpose - So ion doesn't get stuck in a bin??
+              dNTot=totalCD(k) !So ion doesn't get stuck in a bin
               dpt=k !dpt is now the bin corresponding to depth
               if(dpt.gt.maxDpt) maxDpt=dpt !Used to see how deep we go
               goto 2000 !Get out of the do-loop that finds depth of penetration
@@ -406,19 +411,21 @@ do run=15,15!1,nEnergies !Loop through different initial ion energies
 !*  A photon count at a specific altitude and charge state means that there was
 !*  a photon producing collision at that specific altitude and the resultant ion
 !*  was at the recorded charge state. That means, a collision that goes from
-!*  S^8+ to S^7+ will be recorded as S^7+; therefore, the S^16+ bin will never
+!*  H^+ to H will be recorded as H; therefore, the H^+ bin will never
 !*  produce a photon. The last bin should ALWAYS be 0. Each processes can only
 !*  create one photon, if it's a photon producing collision.
 !*  Direct excitation (photonsDE) producing collisions:
-!*    TEX+SPEX(27) ,SI+SPEX(29), DI+SPEX(32)
+!*    PEX(9)
 !*  Charge exchange (photonsCX) producing collisions:
-!*    SC+SS(19), TI(25), SC(30)
+!*    TI(3), SC(6), DC(7)
 !*  This is all done in the writing of the output files. Photon productions are
-!*  files 118 and 119 using the sulfur variable.
+!*  files 118 and 119 using the hydrogen variable.
 !*******************************************************************************
-!********************** Counting Hydrogen & H/H2 Production **********************
-      Hydrogen(PID,ChS,dpt)=Hydrogen(PID,ChS,dpt)+1 !Hydrogen prod
+!********************* Counting Hydrogen & H/H2 Production *********************
+      !Hydrogen variable is the precipitating ions
+      hydrogen(PID,ChS,dpt)=hydrogen(PID,ChS,dpt)+1 !Hydrogen prod
       !Hydrogen variable is what shows photon production, depending on processes
+      !Hp, H2p, and H2Ex is all atmospheric hydrogen, not precipitating
       if(disso.eq.2)then
         Hp(dpt)=Hp(dpt)+2 !Number of H^+ produced
       elseif(disso.eq.1)then
@@ -428,7 +435,7 @@ do run=15,15!1,nEnergies !Loop through different initial ion energies
         else !90% chance of no dissociation
           H2p(dpt)=H2p(dpt)+1
         end if
-      elseif(disso.eq.0)then !TEX never dissociates, result is H2*
+      elseif(disso.eq.0.and.PID.eq.TEX)then !TEX never dissociates,result is H2*
         H2Ex(dpt)=H2Ex(dpt)+1
       end if
 !************************** Energy Loss Calculations ***************************
@@ -443,7 +450,7 @@ do run=15,15!1,nEnergies !Loop through different initial ion energies
       end if
       ! if(numSim.eq.10) stop
       dEcollisions(PID)=dEcollisions(PID)+dE
-!********************** Hydrogen Charge State Distribution ***********************
+!********************* Hydrogen Charge State Distribution **********************
       do j=1,nHydEngBins
         if(E.le.HydEngBins(j))then
           HydVsEng(ChS,j)=HydVsEng(ChS,j)+1
@@ -465,7 +472,7 @@ do run=15,15!1,nEnergies !Loop through different initial ion energies
       end do
 4000 continue
       E=E-dE
-      ChS=ChS_init
+      ! ChS=ChS_init
       ChS_old=ChS !Assign newly acquired charge state to old variable
       if(E.lt.1.0) goto 5000 !Stop once the energy is less than 1 keV/u
       if(i.eq.numSim)then
@@ -517,36 +524,34 @@ do run=15,15!1,nEnergies !Loop through different initial ion energies
   write(105,F04) (collisions(i),i=1,nProc),sum(collisions)
   write(105,F4) !'--'
   write(105,F05) (real(collisions(i))/real(sum(collisions))*100,i=1,nProc)
-! !*** Photon production
-!   write(106,N01) !CX note
-!   write(107,N02) !DE note
-!   do i=1,2 !Loop through CX and DE headers
-!     write(105+i,*) !Blank space
-!     write(105+i,H09) !Initial input header
-!     write(105+i,*) !Blank space
-!     write(105+i,H05) !Altitude integrated photon production header
-!     write(105+i,H06) !Charge state header
-!   end do
-  !* Altitude integrated photon production
-  ! write(106,F06) altDelta(1),& !CX - TI, SC, SC+SPEX
-  !   (real(sum(sulfur(TI,noPP,ChS,:))+sum(sulfur(SC,noPP,ChS,:))+&
-  !   sum(sulfur(SC,SS,ChS,:)))/norm,ChS=1,nChS)
-  ! write(107,F06) altDelta(1),& !DE - SI+SPEX, DI+SPEX, TEX+SPEX
-  !   (real(sum(sulfur(SI,SPEX,ChS,:))+sum(sulfur(DI,SPEX,ChS,:))+&
-  !   sum(sulfur(TEX,SPEX,ChS,:)))/norm,ChS=1,nChS)
-  ! do i=1,2 !Loop through CX and DE headers
-  !   write(105+i,*) !Blank space
-  !   write(105+i,H07) !Photon production vs. altitude header
-  !   write(105+i,H08) !Charge state header
-  ! end do
-  ! do i=1,atmosLen
-  !   write(106,F06) altitude(i),& !CX - TI, SC, SC+SPEX
-  !    (real(sulfur(TI,noPP,ChS,i)+sulfur(SC,noPP,ChS,i)+sulfur(SC,SS,ChS,i))/&
-  !    norm,ChS=1,nChS)
-  !   write(107,F06) altitude(i),& !DE - SI+SPEX, DI+SPEX, TEX+SPEX
-  !    (real(sulfur(SI,SPEX,ChS,i)+sulfur(DI,SPEX,ChS,i)+sulfur(TEX,SPEX,ChS,i))/&
-  !    norm,ChS=1,nChS)
-  ! end do
+!*** Photon production
+  write(106,N01) !CX note
+  write(107,N02) !DE note
+  do i=1,2 !Loop through CX and DE headers
+    write(105+i,*) !Blank space
+    write(105+i,H09) !Initial input header
+    write(105+i,*) !Blank space
+    write(105+i,H05) !Altitude integrated photon production header
+    write(105+i,H06) !Charge state header
+  end do
+!*** Altitude integrated photon production
+  write(106,F06) altDelta(1),& !CX - TI, SC, DC
+    (real(sum(hydrogen(TI,ChS,:))+sum(hydrogen(SC,ChS,:))+&
+    sum(hydrogen(DC,ChS,:)))/norm,ChS=1,nChS)
+  write(107,F06) altDelta(1),& !DE - PEX
+    (real(sum(hydrogen(PEX,ChS,:)))/norm,ChS=1,nChS)
+  do i=1,2 !Loop through CX and DE headers
+    write(105+i,*) !Blank space
+    write(105+i,H07) !Photon production vs. altitude header
+    write(105+i,H08) !Charge state header
+  end do
+  do i=1,atmosLen
+    write(106,F06) altitude(i),& !CX - TI, SC, DC
+     (real(hydrogen(TI,ChS,i)+hydrogen(SC,ChS,i)+hydrogen(DC,ChS,i))/&
+     norm,ChS=1,nChS)
+    write(107,F06) altitude(i),& !DE - PEX
+     (real(hydrogen(PEX,ChS,i))/norm,ChS=1,nChS)
+  end do
 !*** Stopping power
   write(108,H10) !Stopping power header
   do i=2,nSPBins !Loop through ever stopping power bin
