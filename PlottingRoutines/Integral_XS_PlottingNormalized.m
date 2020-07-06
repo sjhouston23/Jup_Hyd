@@ -90,17 +90,43 @@ fclose(fid1);
 %     hold off
 % %     keyboard
 % end
+% 
+% figure(2)
+% colors = [0 0 0;colormap(jet(9))];
+% titles = ["H^{-}" "H" "H^{+}"];
+% for i = 1:3
+%     subplot(1,3,i)
+%     hold on
+%     for j = 1:nProc
+%         loglog(energyN(:,i),xsN(:,i,j),'Color',colors(j,:),'LineWidth',2)
+%     end
+%     legend(procNames)
+%     title(titles{i})
+%     xlabel('Projectile Energy [keV]')
+%     ylabel('Cross-Section [cm^{-2}]')
+%     xticks([1 10 100 1000 10000 100000])
+%     ylim([1e-25 1e-14])
+%     set(gca,'FontSize',16,'FontWeight','bold','XMinorTick','on','XScale',...
+%     'log','YMinorTick','on','YScale','log')
+%     hold off
+% end
 
-figure(2)
-colors = [0 0 0;colormap(jet(9))];
+ct = xsN(:,:,3)+xsN(:,:,6)+xsN(:,:,7);
+strip = xsN(:,:,4)+xsN(:,:,5);
+other = sum(xsN,3) - ct - strip;
+
+figure(3)
+colors = [0 0 0;1 0 0;0 0 1];
 titles = ["H^{-}" "H" "H^{+}"];
 for i = 1:3
     subplot(1,3,i)
     hold on
-    for j = 1:nProc
-        loglog(energyN(:,i),xsN(:,i,j),'Color',colors(j,:),'LineWidth',2)
-    end
-    legend(procNames)
+    
+    loglog(energyN(:,i),other(:,i),'Color',colors(1,:),'LineWidth',2)
+    loglog(energyN(:,i),ct(:,i),'Color',colors(2,:),'LineWidth',2)
+    loglog(energyN(:,i),strip(:,i),'Color',colors(3,:),'LineWidth',2)
+
+    legend({'Other - SI + DI + TEX + PEX + ES','Charge Transfer - TI + SC + DC','Stripping - SS + DS'})
     title(titles{i})
     xlabel('Projectile Energy [keV]')
     ylabel('Cross-Section [cm^{-2}]')
